@@ -1,6 +1,6 @@
 ENTRY( InterruptVector )
 
-__stack_size = 2048;
+__stack_size = 100;
 
 PROVIDE( _stack_size = __stack_size );
 
