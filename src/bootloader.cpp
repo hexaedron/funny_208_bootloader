@@ -147,7 +147,7 @@ int main()
     SysTick->CMP  = DELAY_MS_TIME; // 1 ms
     SysTick->CNT  = 0; 
     SysTick->CTLR |= SYSTICK_CTLR_STE | SYSTICK_CTLR_STIE | SYSTICK_CTLR_STCLK ;
-//
+
     funGpioInitC();
     funPinMode(PC0, GPIO_Speed_2MHz | GPIO_CNF_OUT_PP);
 	funPinMode(PC1, GPIO_Speed_2MHz | GPIO_CNF_OUT_PP);
