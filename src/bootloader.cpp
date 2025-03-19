@@ -1,15 +1,29 @@
 #include <ch32fun.h>
 #include <ch32v20xhw.h>
 
+#define ERASED_FLASH_CONTENTS (0xe339e339)
+
 #define MAIN_CODE_ADDR (0x400)
 
 #define MAIN_CODE_FLASH_ADDR (FLASH_BASE + 0x400)
 #define NEW_FW_ADDR (FLASH_BASE + 0x20000) // 128K
 #define NEW_FW_LENGTH (0x20000 - MAIN_CODE_ADDR) // 128K - bootloader length
 
-extern "C" void __libc_init_array(void);
-
 #define FLASH_WAIT() while(FLASH->STATR & SR_BSY) {}
+
+void blink(uint32_t addr)
+{
+    if((addr / 1024) % 2)
+    {
+        funDigitalWrite(PC0, FUN_HIGH);
+        funDigitalWrite(PC1, FUN_HIGH);
+    }
+    else
+    {
+        funDigitalWrite(PC0, FUN_LOW);
+        funDigitalWrite(PC1, FUN_LOW);
+    }
+}
 
 void eraseFlash(uint32_t start, uint32_t length)
 {   
@@ -30,18 +44,8 @@ void eraseFlash(uint32_t start, uint32_t length)
        FLASH->ADDR = (intptr_t)addr;
        FLASH->CTLR = CR_STRT_Set | CR_PAGE_ER;
        FLASH_WAIT();
-       //FLASH->CTLR &= ~CR_PAGE_ER;
 
-       if((addr / 2048) % 2)
-        {
-            funDigitalWrite(PC0, FUN_HIGH);
-            funDigitalWrite(PC1, FUN_HIGH);
-        }
-        else
-        {
-            funDigitalWrite(PC0, FUN_LOW);
-            funDigitalWrite(PC1, FUN_LOW);
-        }
+       blink(addr);
     }
 
     // Lock flash back
@@ -68,33 +72,32 @@ void writeFlashWord(uint32_t addr, uint32_t data)
 }
 
 // Write 256 byte page
-void writeFlash256(uint32_t pageAddress, uint32_t* data)
+void writeFlash256(uint32_t pageAddress, uint32_t data)
 {   
-    FLASH->CTLR |= CR_PAGE_PG;
-    while(FLASH->STATR & SR_BSY);
+    FLASH->CTLR = CR_PAGE_PG;
+    FLASH_WAIT();
     while(FLASH->STATR & SR_WR_BSY);
 
     uint32_t size = 64;
 
     while(size)
-    {
+    {funDigitalWrite(PC1, FUN_LOW);
         *(uint32_t *)pageAddress = *(uint32_t *)data;
         pageAddress += 4;
         data += 1;
-        size -= 1;
+        size--;
         while(FLASH->STATR & SR_WR_BSY);
+        //FLASH_WAIT();
     }
 
-    FLASH->CTLR |= CR_PG_STRT;
-    while(FLASH->STATR & SR_BSY);
-    FLASH->CTLR &= ~CR_PAGE_PG;
+    FLASH->CTLR = CR_PG_STRT | CR_PAGE_PG;
+    FLASH_WAIT();
+    //FLASH->CTLR &= ~CR_PAGE_PG;
 }
 
 //Copy new to main by 256 byte pages
 void copyNewToMain256(uint32_t mainStart, uint32_t newStart, uint32_t length)
 {
-    static bool flag = true;
-
     /* Authorize the FPEC of Bank1 Access */
     FLASH->KEYR = FLASH_KEY1;
     FLASH->KEYR = FLASH_KEY2;
@@ -104,22 +107,12 @@ void copyNewToMain256(uint32_t mainStart, uint32_t newStart, uint32_t length)
     FLASH->MODEKEYR = FLASH_KEY2;
 
     uint32_t newAddr = newStart;
-    for(uint32_t addr = mainStart; addr < mainStart + length; addr += 256)
+    for(uint32_t addr = mainStart; addr < (mainStart + length); addr += 256)
     {
-        writeFlash256(addr, (uint32_t *)newAddr);
+        writeFlash256(addr, newAddr);
         newAddr += 256;
 
-        if(flag)
-        {
-            funDigitalWrite(PC0, FUN_HIGH);
-            funDigitalWrite(PC1, FUN_HIGH);
-        }
-        else
-        {
-            funDigitalWrite(PC0, FUN_LOW);
-            funDigitalWrite(PC1, FUN_LOW);
-        }
-        flag = !flag;
+        blink(addr);
     }
     // Lock flash back
     FLASH->CTLR |= CR_FAST_LOCK_Set;
@@ -139,16 +132,7 @@ void copyNewToMain(uint32_t mainStart, uint32_t newStart, uint32_t length)
         writeFlashWord(addr, *(uint32_t*)newAddr);
         newAddr += 4;
 
-        if((addr / 1024) % 2)
-        {
-            funDigitalWrite(PC0, FUN_HIGH);
-            funDigitalWrite(PC1, FUN_HIGH);
-        }
-        else
-        {
-            funDigitalWrite(PC0, FUN_LOW);
-            funDigitalWrite(PC1, FUN_LOW);
-        }
+        blink(addr);
     }
 
     // Lock flash back
@@ -169,21 +153,14 @@ int main()
 	funPinMode(PC1, GPIO_Speed_2MHz | GPIO_CNF_OUT_PP);
     Delay_Ms(3000);
 
-    volatile uint32_t* rd = (uint32_t*)NEW_FW_ADDR;
-    if(*rd != 0xe339e339)
+    uint32_t* rd = (uint32_t*)NEW_FW_ADDR;
+    if(*rd != ERASED_FLASH_CONTENTS)
     {
-        funDigitalWrite(PC1, FUN_HIGH);
-        funDigitalWrite(PC0, FUN_HIGH);
-        //Delay_Ms(500);
         eraseFlash(MAIN_CODE_FLASH_ADDR, NEW_FW_LENGTH);
         copyNewToMain(MAIN_CODE_FLASH_ADDR, NEW_FW_ADDR, NEW_FW_LENGTH);
         eraseFlash(NEW_FW_ADDR, NEW_FW_LENGTH);
         PFIC->SCTLR = 1<<31; // reboot
     }
-    //eraseFlash(MAIN_CODE_FLASH_ADDR, NEW_FW_LENGTH);
-
-    //copyNewToMain256(MAIN_CODE_FLASH_ADDR, NEW_FW_ADDR, NEW_FW_LENGTH);
-    //copyNewToMain(MAIN_CODE_FLASH_ADDR, NEW_FW_ADDR, NEW_FW_LENGTH);
 
     void (*jumpMainFW)(void) ;
 
