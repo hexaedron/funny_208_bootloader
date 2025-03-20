@@ -1,16 +1,22 @@
 #include <ch32fun.h>
 #include <ch32v20xhw.h>
 
+// Config
+#define DELAY_MS 3000
+//#define NOBLINK
+//#define NOWAIT
+
 #define ERASED_FLASH_CONTENTS (0xe339e339)
-
-#define MAIN_CODE_ADDR (0x400)
-
-#define MAIN_CODE_FLASH_ADDR (FLASH_BASE + 0x400)
-#define NEW_FW_ADDR (FLASH_BASE + 0x20000) // 128K
-#define NEW_FW_LENGTH (0x20000 - MAIN_CODE_ADDR) // 128K - bootloader length
+#define MAIN_CODE_ADDR        (0x400)
+#define MAIN_CODE_FLASH_ADDR  (FLASH_BASE + 0x400)
+#define NEW_FW_ADDR           (FLASH_BASE + 0x20000) // 128K
+#define NEW_FW_LENGTH         (0x20000 - MAIN_CODE_ADDR) // 128K - bootloader length
 
 #define FLASH_WAIT() while(FLASH->STATR & SR_BSY) {}
 
+#if defined(NOBLINK)
+#define blink(x) 
+#else
 void blink(uint32_t addr)
 {
     if((addr / 1024) % 2)
@@ -24,6 +30,7 @@ void blink(uint32_t addr)
         funDigitalWrite(PC1, FUN_LOW);
     }
 }
+#endif
 
 void eraseFlash(uint32_t start, uint32_t length)
 {   
@@ -95,15 +102,19 @@ int main()
 { 
     SystemInit();
 
-    SysTick->SR   = 0;
-    SysTick->CMP  = DELAY_MS_TIME; // 1 ms
-    SysTick->CNT  = 0; 
-    SysTick->CTLR |= SYSTICK_CTLR_STE | SYSTICK_CTLR_STIE | SYSTICK_CTLR_STCLK ;
+    #if !defined(NOBLINK)
+        funGpioInitC();
+        funPinMode(PC0, GPIO_Speed_2MHz | GPIO_CNF_OUT_PP);
+        funPinMode(PC1, GPIO_Speed_2MHz | GPIO_CNF_OUT_PP);
+    #endif
 
-    funGpioInitC();
-    funPinMode(PC0, GPIO_Speed_2MHz | GPIO_CNF_OUT_PP);
-	funPinMode(PC1, GPIO_Speed_2MHz | GPIO_CNF_OUT_PP);
-    Delay_Ms(3000);
+    #if !defined(NOWAIT)
+        SysTick->SR   = 0;
+        SysTick->CMP  = DELAY_MS_TIME; // 1 ms
+        SysTick->CNT  = 0; 
+        SysTick->CTLR |= SYSTICK_CTLR_STE | SYSTICK_CTLR_STIE | SYSTICK_CTLR_STCLK ;
+        Delay_Ms(DELAY_MS);
+    #endif
 
     uint32_t* rd = (uint32_t*)NEW_FW_ADDR;
     if(*rd != ERASED_FLASH_CONTENTS)
