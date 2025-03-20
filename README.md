@@ -2,7 +2,7 @@
 
 A tiny and simple bootloader for the CH32V208 chip, capable of performing firmware upgrades. It fits within a 1KB size.
 
-This bootloader depends on the [ch32vfun](https://github.com/cnlohr/ch32fun) library.
+This bootloader depends on the [ch32fun](https://github.com/cnlohr/ch32fun) library.
 
 ## Usage
 
