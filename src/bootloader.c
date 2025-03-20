@@ -71,54 +71,6 @@ void writeFlashWord(uint32_t addr, uint32_t data)
     FLASH->CTLR &= CR_PG_Reset;
 }
 
-// Write 256 byte page
-void writeFlash256(uint32_t pageAddress, uint32_t data)
-{   
-    FLASH->CTLR = CR_PAGE_PG;
-    FLASH_WAIT();
-    while(FLASH->STATR & SR_WR_BSY);
-
-    uint32_t size = 64;
-
-    while(size)
-    {funDigitalWrite(PC1, FUN_LOW);
-        *(uint32_t *)pageAddress = *(uint32_t *)data;
-        pageAddress += 4;
-        data += 1;
-        size--;
-        while(FLASH->STATR & SR_WR_BSY);
-        //FLASH_WAIT();
-    }
-
-    FLASH->CTLR = CR_PG_STRT | CR_PAGE_PG;
-    FLASH_WAIT();
-    //FLASH->CTLR &= ~CR_PAGE_PG;
-}
-
-//Copy new to main by 256 byte pages
-void copyNewToMain256(uint32_t mainStart, uint32_t newStart, uint32_t length)
-{
-    /* Authorize the FPEC of Bank1 Access */
-    FLASH->KEYR = FLASH_KEY1;
-    FLASH->KEYR = FLASH_KEY2;
-
-    /* Fast mode unlock */
-    FLASH->MODEKEYR = FLASH_KEY1;
-    FLASH->MODEKEYR = FLASH_KEY2;
-
-    uint32_t newAddr = newStart;
-    for(uint32_t addr = mainStart; addr < (mainStart + length); addr += 256)
-    {
-        writeFlash256(addr, newAddr);
-        newAddr += 256;
-
-        blink(addr);
-    }
-    // Lock flash back
-    FLASH->CTLR |= CR_FAST_LOCK_Set;
-    FLASH->CTLR |= CR_LOCK_Set;
-}
-
 //Copy new to main by words
 void copyNewToMain(uint32_t mainStart, uint32_t newStart, uint32_t length)
 {
