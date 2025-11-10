@@ -4,7 +4,9 @@
 // Config
 #define DELAY_MS 3000
 //#define NOBLINK
-//#define NOWAIT
+#define NOWAIT
+
+#define UPGRADE_MODE 0x1 // 0x1 = upgrade mode, otherwise = normal mode
 
 #define ERASED_FLASH_CONTENTS (0xe339e339)
 #define MAIN_CODE_ADDR        (0x400)
@@ -116,8 +118,13 @@ int main()
         Delay_Ms(DELAY_MS);
     #endif
 
+    // Init backup registers
+    RCC->APB1PCENR |= (RCC_APB1Periph_PWR | RCC_APB1Periph_BKP);
+
     uint32_t* rd = (uint32_t*)NEW_FW_ADDR;
-    if(*rd != ERASED_FLASH_CONTENTS)
+
+    // Check that flash is not empty and there is a command to upgrade the firmware
+    if((*rd != ERASED_FLASH_CONTENTS) && (BKP->DATAR1 == UPGRADE_MODE) )
     {
         eraseFlash(MAIN_CODE_FLASH_ADDR, NEW_FW_LENGTH);
         copyNewToMain(MAIN_CODE_FLASH_ADDR, NEW_FW_ADDR, NEW_FW_LENGTH);
