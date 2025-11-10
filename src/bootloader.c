@@ -128,7 +128,7 @@ int main()
     {
         eraseFlash(MAIN_CODE_FLASH_ADDR, NEW_FW_LENGTH);
         copyNewToMain(MAIN_CODE_FLASH_ADDR, NEW_FW_ADDR, NEW_FW_LENGTH);
-        eraseFlash(NEW_FW_ADDR, NEW_FW_LENGTH);
+        BKP->DATAR1 = 0x0;
         PFIC->SCTLR = 1<<31; // reboot
     }
 
