@@ -7,7 +7,7 @@ This bootloader depends on the [ch32fun](https://github.com/cnlohr/ch32fun) libr
 ## Usage
 
 1. Flash the bootloader firmware to address `0x08000000`.
-2. **Important**: The main firmware should be flashed to `0x08000400` and linked with `ORIGIN=0x08000400`.
+2. **Important**: The main firmware should be flashed to `0x08000400` and linked with `ORIGIN=0x00000400`.
 
 ### Firmware Upgrade Process
 
