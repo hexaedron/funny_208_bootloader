@@ -120,6 +120,7 @@ int main()
 
     // Init backup registers
     RCC->APB1PCENR |= (RCC_APB1Periph_PWR | RCC_APB1Periph_BKP);
+    PWR->CTLR |= PWR_CTLR_DBP;
 
     uint32_t* rd = (uint32_t*)NEW_FW_ADDR;
 
