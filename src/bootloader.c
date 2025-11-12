@@ -122,14 +122,34 @@ int main()
     RCC->APB1PCENR |= (RCC_APB1Periph_PWR | RCC_APB1Periph_BKP);
     PWR->CTLR |= PWR_CTLR_DBP;
 
+    // BKP->DATAR[2, 3] contain address to write new FW.
+    // If it is empty, use MAIN_CODE_FLASH_ADDR
+    uint32_t mainFwAddr = (uint32_t)( ((uint32_t)BKP->DATAR2) | (((uint32_t)BKP->DATAR3) << 16) ); 
+    if(mainFwAddr == 0)
+    {
+        mainFwAddr = (uint32_t)MAIN_CODE_FLASH_ADDR;
+    }
+
+    // BKP->DATAR[4, 5] contain new FW length.
+    // If it is empty, use NEW_FW_LENGTH
+    uint32_t newFwLength = ( ((uint32_t)BKP->DATAR4) | (((uint32_t)BKP->DATAR5) << 16) );
+    if(newFwLength == 0)
+    {
+        newFwLength = NEW_FW_LENGTH;
+    }
+
     uint32_t* rd = (uint32_t*)NEW_FW_ADDR;
 
     // Check that flash is not empty and there is a command to upgrade the firmware
     if((*rd != ERASED_FLASH_CONTENTS) && (BKP->DATAR1 == UPGRADE_MODE) )
     {
-        eraseFlash(MAIN_CODE_FLASH_ADDR, NEW_FW_LENGTH);
-        copyNewToMain(MAIN_CODE_FLASH_ADDR, NEW_FW_ADDR, NEW_FW_LENGTH);
+        eraseFlash(mainFwAddr, newFwLength);
+        copyNewToMain(mainFwAddr, NEW_FW_ADDR, newFwLength);
         BKP->DATAR1 = 0x0;
+        BKP->DATAR2 = 0x0;
+        BKP->DATAR3 = 0x0;
+        BKP->DATAR4 = 0x0;
+        BKP->DATAR5 = 0x0;
         PFIC->SCTLR = 1<<31; // reboot
     }
 
