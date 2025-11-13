@@ -11,7 +11,7 @@ This bootloader depends on the [ch32fun](https://github.com/cnlohr/ch32fun) libr
 
 ### Firmware Upgrade Process
 
-In your main firmware, implement the logic to fetch and place the new firmware at `0x08020000`. All firmware verification should be performed by the main firmware, as the bootloader does not perform any checks. Afterward, reboot the chip, and the upgrade process will start automatically.
+In your main firmware, implement the logic to fetch and place the new firmware at `0x08020000`. All firmware verification should be performed by the main firmware, as the bootloader does not perform any checks. Set `BKP->DATAR1` to `0x1` in the main firmware. Afterward, reboot the chip, and the upgrade process will start automatically.
 
 - **Custom Firmware Write Location**:  
   You can specify a custom address to write the new firmware. Use `BKP->DATAR[2, 3]` to provide the 32-bit address. If these values are empty, the firmware will be written to the default address `MAIN_CODE_FLASH_ADDR`. Make sure to set the correct `ORIGIN` when linking the new firmware.
